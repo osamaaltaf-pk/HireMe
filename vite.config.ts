@@ -9,5 +9,6 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-  }
+  },
+  envPrefix: ['VITE_', 'NEXT_PUBLIC_']
 });

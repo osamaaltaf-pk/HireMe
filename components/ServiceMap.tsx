@@ -31,7 +31,7 @@ export const ServiceMap: React.FC<ServiceMapProps> = ({ providers, selectedProvi
       return;
     }
 
-    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
+    const apiKey = (import.meta as any).env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
     if (!apiKey) {
       setApiKeyError(true);
       return;
