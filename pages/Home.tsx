@@ -36,15 +36,16 @@ const Home: React.FC<HomeProps> = ({ onNavigate }) => {
   const featuredProviders = MOCK_PROVIDERS.filter(p => p.rating > 4.7).slice(0, 3);
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col h-full">
       {/* Hero Section */}
-      <section className="relative bg-blue-700 py-20 px-4 sm:px-6 overflow-hidden">
+      {/* On Mobile/Tablet (<lg): flex-grow to fill screen, justify-center to center content */}
+      <section className="relative bg-blue-700 py-20 px-4 sm:px-6 overflow-hidden flex-grow lg:flex-grow-0 flex flex-col justify-center">
         <div className="absolute inset-0 bg-gradient-to-r from-blue-900 to-blue-700 opacity-90"></div>
         {/* Decorative circles */}
         <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-blue-500 opacity-20 blur-3xl"></div>
         <div className="absolute bottom-0 left-0 w-64 h-64 rounded-full bg-indigo-500 opacity-20 blur-3xl"></div>
 
-        <div className="relative max-w-4xl mx-auto text-center">
+        <div className="relative max-w-4xl mx-auto text-center z-10">
           <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-6 tracking-tight">
             Find Trusted Experts for <br className="hidden sm:block" /> Every Home Service
           </h1>
@@ -78,8 +79,8 @@ const Home: React.FC<HomeProps> = ({ onNavigate }) => {
         </div>
       </section>
 
-      {/* Categories Section */}
-      <section className="py-16 px-4 max-w-7xl mx-auto w-full">
+      {/* Categories Section - Hidden on Mobile/Tablet */}
+      <section className="hidden lg:block py-16 px-4 max-w-7xl mx-auto w-full">
         <h2 className="text-2xl font-bold text-slate-900 mb-8 text-center sm:text-left">Popular Categories</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
           {SERVICE_CATEGORIES.map((cat) => (
@@ -97,8 +98,8 @@ const Home: React.FC<HomeProps> = ({ onNavigate }) => {
         </div>
       </section>
 
-      {/* Trust Factors */}
-      <section className="bg-slate-50 py-16 border-y border-slate-200">
+      {/* Trust Factors - Hidden on Mobile/Tablet */}
+      <section className="hidden lg:block bg-slate-50 py-16 border-y border-slate-200">
         <div className="max-w-7xl mx-auto px-4">
            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
              {[
@@ -118,8 +119,8 @@ const Home: React.FC<HomeProps> = ({ onNavigate }) => {
         </div>
       </section>
 
-      {/* Featured Providers */}
-      <section className="py-16 px-4 max-w-7xl mx-auto w-full">
+      {/* Featured Providers - Hidden on Mobile/Tablet */}
+      <section className="hidden lg:block py-16 px-4 max-w-7xl mx-auto w-full">
         <div className="flex justify-between items-end mb-8">
           <div>
             <h2 className="text-2xl font-bold text-slate-900">Top Rated Pros</h2>
