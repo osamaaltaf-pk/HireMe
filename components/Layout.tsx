@@ -1,9 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { UserProfile } from '../types';
 import { LogOut, User, Menu, X, ShieldCheck, MapPin, AlertCircle, Home, Search, Calendar, MessageSquare, Repeat, Bell } from 'lucide-react';
 import { ComplaintModal } from './ComplaintModal';
 import { Logo } from './Logo';
+import { db } from '../services/db';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -18,26 +19,88 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onNavigate, o
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isComplaintOpen, setIsComplaintOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  
+  // Real-time Notification State
+  const [unreadCount, setUnreadCount] = useState(0);
+  const prevUnreadCountRef = useRef(0);
 
-  // Mock Notifications
+  // Mock Notifications (System)
   const notifications = [
       { id: 1, text: "Welcome to HireMe! Complete your profile.", time: "2h ago", isRead: false },
       { id: 2, text: "New service categories added near you.", time: "1d ago", isRead: true }
   ];
 
-  const NavItem = ({ page, label, icon: Icon }: { page: string; label: string; icon: any }) => (
+  // Request Notification Permission on mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission !== 'granted') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  // Poll for new messages (Global Listener)
+  useEffect(() => {
+    if (!user) return;
+
+    const checkMessages = () => {
+      const currentCount = db.getGlobalUnreadCount(user.id, user.currentRole);
+      
+      // If we have MORE unread messages than before, trigger alert
+      if (currentCount > prevUnreadCountRef.current) {
+        playNotificationSound();
+        triggerBrowserNotification(currentCount);
+      }
+      
+      setUnreadCount(currentCount);
+      prevUnreadCountRef.current = currentCount;
+    };
+
+    // Check immediately and then every 3 seconds
+    checkMessages();
+    const interval = setInterval(checkMessages, 3000);
+
+    return () => clearInterval(interval);
+  }, [user?.id, user?.currentRole]); // Re-run if user or role switches
+
+  const playNotificationSound = () => {
+    try {
+      // Simple pleasant notification chime
+      const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
+      audio.volume = 0.5;
+      audio.play().catch(e => console.log("Audio play blocked until user interaction"));
+    } catch (e) {
+      console.error("Error playing sound", e);
+    }
+  };
+
+  const triggerBrowserNotification = (count: number) => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification("New Message | HireMe", {
+        body: `You have ${count} unread message(s).`,
+        icon: "/vite.svg" // Fallback icon
+      });
+    }
+  };
+
+  const NavItem = ({ page, label, icon: Icon, badge }: { page: string; label: string; icon: any; badge?: number }) => (
     <button
       onClick={() => {
         onNavigate(page);
         setIsMenuOpen(false);
       }}
-      className={`flex flex-col md:flex-row items-center md:space-x-2 px-3 py-2 rounded-lg transition-all duration-200 ${
+      className={`relative flex flex-col md:flex-row items-center md:space-x-2 px-3 py-2 rounded-lg transition-all duration-200 ${
         activePage === page 
           ? 'text-blue-600 md:bg-blue-50' 
           : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
       }`}
     >
-      <Icon size={20} className={activePage === page ? 'fill-current' : ''} />
+      <div className="relative">
+        <Icon size={20} className={activePage === page ? 'fill-current' : ''} />
+        {badge && badge > 0 ? (
+          <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center border border-white animate-bounce">
+            {badge}
+          </span>
+        ) : null}
+      </div>
       <span className="text-[10px] md:text-sm font-medium mt-1 md:mt-0">{label}</span>
     </button>
   );
@@ -60,7 +123,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onNavigate, o
               <NavItem page="home" label="Home" icon={Home} />
               <NavItem page="explore" label="Explore" icon={Search} />
               {user && <NavItem page="bookings" label="Bookings" icon={Calendar} />}
-              {user && <NavItem page="messages" label="Messages" icon={MessageSquare} />}
+              {user && <NavItem page="messages" label="Messages" icon={MessageSquare} badge={unreadCount} />}
             </div>
 
             {/* Desktop Right (Profile/Auth) */}
@@ -85,7 +148,9 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onNavigate, o
                             className="p-2 text-slate-500 hover:bg-slate-50 rounded-full relative"
                         >
                             <Bell size={20} />
-                            <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-white"></span>
+                            {notifications.some(n => !n.isRead) && (
+                                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-white"></span>
+                            )}
                         </button>
 
                         {showNotifications && (
@@ -167,7 +232,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onNavigate, o
            <NavItem page="home" label="Home" icon={Home} />
            <NavItem page="explore" label="Explore" icon={Search} />
            <NavItem page="bookings" label="Bookings" icon={Calendar} />
-           <NavItem page="messages" label="Messages" icon={MessageSquare} />
+           <NavItem page="messages" label="Messages" icon={MessageSquare} badge={unreadCount} />
            <NavItem page="profile" label="Profile" icon={User} />
         </div>
       </div>

@@ -13,12 +13,13 @@ const Messages: React.FC<MessagesProps> = ({ user, bookings }) => {
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState('');
   const [activeMessages, setActiveMessages] = useState<Message[]>([]);
+  // Trigger to force re-render of sidebar counts
+  const [refreshTrigger, setRefreshTrigger] = useState(0); 
   
   const isProviderView = user.currentRole === 'provider';
 
-  // Filter bookings to find chat-able contacts based on ACTIVE ROLE only
-  // If acting as provider, only show jobs where I am the provider.
-  // If acting as customer, only show bookings where I am the customer.
+  // Sort bookings so ones with recent activity or unread messages are at top
+  // Map bookings to chat objects including unread count
   const myChats = bookings.filter(b => {
     if (isProviderView) {
       return b.providerId === user.id;
@@ -33,9 +34,12 @@ const Messages: React.FC<MessagesProps> = ({ user, bookings }) => {
     const partnerId = isProviderView ? b.customerId : b.providerId;
     const partnerAvatar = `https://ui-avatars.com/api/?name=${partnerName}&background=random`;
     
-    // Get last message for this booking
+    // Get messages for this booking
     const msgs = db.getMessages(b.id);
     const lastMsg = msgs.length > 0 ? msgs[msgs.length - 1] : null;
+    
+    // Calculate unread count (messages NOT from me, and NOT read)
+    const unreadCount = msgs.filter(m => m.senderId !== user.id && !m.isRead).length;
 
     return {
       bookingId: b.id,
@@ -44,27 +48,38 @@ const Messages: React.FC<MessagesProps> = ({ user, bookings }) => {
       partnerAvatar,
       service: b.serviceCategory,
       lastMessage: lastMsg ? lastMsg.content : 'Chat started',
-      time: lastMsg ? new Date(lastMsg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : new Date(b.scheduledAt).toLocaleDateString(),
-      unread: 0 // Todo: implement unread logic
+      lastTimestamp: lastMsg ? new Date(lastMsg.timestamp).getTime() : new Date(b.scheduledAt).getTime(),
+      timeDisplay: lastMsg ? new Date(lastMsg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : new Date(b.scheduledAt).toLocaleDateString(),
+      unread: unreadCount
     };
-  });
+  }).sort((a, b) => b.lastTimestamp - a.lastTimestamp); // Sort newest first
 
-  // Load active messages when chat selected
+  // Poll to keep sidebar and active chat updated
+  useEffect(() => {
+    const interval = setInterval(() => {
+        setRefreshTrigger(prev => prev + 1);
+        if (selectedBookingId) {
+            const msgs = db.getMessages(selectedBookingId);
+            setActiveMessages(msgs);
+            
+            // If chat is open, mark messages as read periodically to catch incoming
+            // This is a simplified approach. Ideally we mark read on specific events.
+            db.markMessagesRead(selectedBookingId, user.id);
+        }
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [selectedBookingId, user.id]);
+
+  // Initial load when opening a chat
   useEffect(() => {
     if (selectedBookingId) {
-      // Poll or reload messages
-      const load = () => {
         const msgs = db.getMessages(selectedBookingId);
         setActiveMessages(msgs);
-      };
-      load();
-      // Simple polling for "realtime" feel
-      const interval = setInterval(load, 2000);
-      return () => clearInterval(interval);
+        // Mark as read immediately on open
+        db.markMessagesRead(selectedBookingId, user.id);
+        setRefreshTrigger(prev => prev + 1); // Update sidebar badges
     }
-  }, [selectedBookingId]);
-
-  // Handle URL param selection if needed (not implemented in this simplified view, relies on state)
+  }, [selectedBookingId, user.id]);
 
   const handleSendMessage = (e: React.FormEvent) => {
       e.preventDefault();
@@ -83,6 +98,7 @@ const Messages: React.FC<MessagesProps> = ({ user, bookings }) => {
       db.sendMessage(newMessage);
       setActiveMessages([...activeMessages, newMessage]);
       setMessageInput('');
+      setRefreshTrigger(prev => prev + 1); // Move chat to top
   };
 
   const selectedChatInfo = myChats.find(c => c.bookingId === selectedBookingId);
@@ -114,14 +130,21 @@ const Messages: React.FC<MessagesProps> = ({ user, bookings }) => {
                  onClick={() => setSelectedBookingId(chat.bookingId)}
                  className={`flex items-center gap-3 p-4 hover:bg-slate-50 cursor-pointer border-b border-slate-50 transition-colors ${selectedBookingId === chat.bookingId ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''}`}
                >
-                  <img src={chat.partnerAvatar} alt={chat.partnerName} className="h-12 w-12 rounded-full flex-shrink-0" />
+                  <div className="relative flex-shrink-0">
+                     <img src={chat.partnerAvatar} alt={chat.partnerName} className="h-12 w-12 rounded-full" />
+                     {chat.unread > 0 && (
+                        <div className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-bold h-5 w-5 flex items-center justify-center rounded-full border-2 border-white">
+                           {chat.unread}
+                        </div>
+                     )}
+                  </div>
                   <div className="flex-grow min-w-0">
                      <div className="flex justify-between items-baseline mb-1">
-                        <h4 className="font-semibold text-slate-900 truncate">{chat.partnerName}</h4>
-                        <span className="text-xs text-slate-400 whitespace-nowrap">{chat.time}</span>
+                        <h4 className={`text-slate-900 truncate ${chat.unread > 0 ? 'font-bold' : 'font-semibold'}`}>{chat.partnerName}</h4>
+                        <span className={`text-xs whitespace-nowrap ${chat.unread > 0 ? 'text-blue-600 font-bold' : 'text-slate-400'}`}>{chat.timeDisplay}</span>
                      </div>
                      <p className="text-xs text-blue-600 mb-1 font-medium">{chat.service}</p>
-                     <p className="text-sm text-slate-500 truncate">{chat.lastMessage}</p>
+                     <p className={`text-sm truncate ${chat.unread > 0 ? 'text-slate-800 font-semibold' : 'text-slate-500'}`}>{chat.lastMessage}</p>
                   </div>
                </div>
              )) : (
@@ -158,8 +181,6 @@ const Messages: React.FC<MessagesProps> = ({ user, bookings }) => {
                  <div className="flex-grow overflow-y-auto p-4 space-y-4 bg-slate-50">
                     {activeMessages.map((msg) => {
                         // Check if message is from "Me" in the current context
-                        // It's mine if ID matches AND (Role is undefined OR Role matches current active role)
-                        // This handles the case where a user messages themselves (Provider <-> Customer) on the same account
                         const isMe = msg.senderId === user.id && (!msg.senderRole || msg.senderRole === user.currentRole);
                         const isSystem = msg.senderId === 'system';
 
@@ -172,9 +193,16 @@ const Messages: React.FC<MessagesProps> = ({ user, bookings }) => {
                                 }`}>
                                     <p className="text-sm">{msg.content}</p>
                                     {!isSystem && (
-                                        <span className={`text-[10px] block text-right mt-1 ${isMe ? 'text-blue-200' : 'text-slate-400'}`}>
-                                            {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                        </span>
+                                        <div className="flex items-center justify-end gap-1 mt-1">
+                                            <span className={`text-[10px] ${isMe ? 'text-blue-200' : 'text-slate-400'}`}>
+                                                {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                            </span>
+                                            {isMe && (
+                                                <span className="text-[10px] text-blue-200 font-bold">
+                                                    {msg.isRead ? '✓✓' : '✓'}
+                                                </span>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                             </div>

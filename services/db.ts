@@ -1,3 +1,4 @@
+
 import { UserProfile, ProviderDetails, Booking, Review, Message, BookingStatus } from '../types';
 import { MOCK_PROVIDERS, MOCK_REVIEWS } from '../constants';
 
@@ -120,6 +121,43 @@ export const db = {
     const messages = get<Message[]>(KEYS.MESSAGES, []);
     messages.push(message);
     set(KEYS.MESSAGES, messages);
+  },
+
+  // Mark all messages in a booking as read for a specific viewer (user)
+  markMessagesRead: (bookingId: string, userId: string) => {
+    const messages = get<Message[]>(KEYS.MESSAGES, []);
+    let updated = false;
+    
+    const newMessages = messages.map(msg => {
+      // If message is in this booking, NOT sent by me, and is unread -> mark read
+      if (msg.bookingId === bookingId && msg.senderId !== userId && !msg.isRead) {
+        updated = true;
+        return { ...msg, isRead: true };
+      }
+      return msg;
+    });
+
+    if (updated) {
+      set(KEYS.MESSAGES, newMessages);
+    }
+  },
+
+  // Get total unread count for a user across all their relevant bookings
+  getGlobalUnreadCount: (userId: string, currentRole: 'customer' | 'provider'): number => {
+    const allMessages = get<Message[]>(KEYS.MESSAGES, []);
+    const allBookings = get<Booking[]>(KEYS.BOOKINGS, []);
+
+    // 1. Find bookings relevant to the current role
+    const myBookingIds = allBookings
+      .filter(b => currentRole === 'provider' ? b.providerId === userId : b.customerId === userId)
+      .map(b => b.id);
+
+    // 2. Count messages in those bookings, sent by others, that are unread
+    return allMessages.filter(m => 
+      myBookingIds.includes(m.bookingId) && 
+      m.senderId !== userId && 
+      !m.isRead
+    ).length;
   },
 
   // --- REVIEWS ---
