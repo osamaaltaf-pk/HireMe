@@ -74,6 +74,7 @@ const Messages: React.FC<MessagesProps> = ({ user, bookings }) => {
           id: `msg_${Date.now()}`,
           bookingId: selectedBookingId,
           senderId: user.id,
+          senderRole: user.currentRole, // Include current role context
           content: messageInput,
           timestamp: new Date().toISOString(),
           isRead: false
@@ -155,20 +156,30 @@ const Messages: React.FC<MessagesProps> = ({ user, bookings }) => {
 
                  {/* Messages List */}
                  <div className="flex-grow overflow-y-auto p-4 space-y-4 bg-slate-50">
-                    {activeMessages.map((msg) => (
-                        <div key={msg.id} className={`flex ${msg.senderId === user.id ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-[75%] rounded-2xl px-4 py-3 shadow-sm ${
-                                msg.senderId === user.id 
-                                ? 'bg-blue-600 text-white rounded-br-none' 
-                                : (msg.senderId === 'system' ? 'bg-slate-200 text-slate-600 text-center w-full rounded-full text-xs py-1' : 'bg-white text-slate-800 border border-slate-200 rounded-bl-none')
-                            }`}>
-                                <p className="text-sm">{msg.content}</p>
-                                <span className={`text-[10px] block text-right mt-1 ${msg.senderId === user.id ? 'text-blue-200' : 'text-slate-400'}`}>
-                                    {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                </span>
+                    {activeMessages.map((msg) => {
+                        // Check if message is from "Me" in the current context
+                        // It's mine if ID matches AND (Role is undefined OR Role matches current active role)
+                        // This handles the case where a user messages themselves (Provider <-> Customer) on the same account
+                        const isMe = msg.senderId === user.id && (!msg.senderRole || msg.senderRole === user.currentRole);
+                        const isSystem = msg.senderId === 'system';
+
+                        return (
+                            <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                <div className={`max-w-[75%] rounded-2xl px-4 py-3 shadow-sm ${
+                                    isMe 
+                                    ? 'bg-blue-600 text-white rounded-br-none' 
+                                    : (isSystem ? 'bg-slate-200 text-slate-600 text-center w-full rounded-full text-xs py-1' : 'bg-white text-slate-800 border border-slate-200 rounded-bl-none')
+                                }`}>
+                                    <p className="text-sm">{msg.content}</p>
+                                    {!isSystem && (
+                                        <span className={`text-[10px] block text-right mt-1 ${isMe ? 'text-blue-200' : 'text-slate-400'}`}>
+                                            {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                  </div>
 
                  {/* Input Area */}

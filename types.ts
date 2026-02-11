@@ -1,3 +1,4 @@
+
 export type UserRole = 'customer' | 'provider' | 'admin';
 
 export enum BookingStatus {
@@ -72,6 +73,7 @@ export interface Message {
   id: string;
   bookingId: string;
   senderId: string;
+  senderRole?: 'customer' | 'provider' | 'admin'; // Helps distinguish in self-chat scenarios
   content: string;
   timestamp: string;
   isRead: boolean;
