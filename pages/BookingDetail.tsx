@@ -1,8 +1,10 @@
+
 import React, { useState } from 'react';
 import { Booking, BookingStatus, UserProfile } from '../types';
-import { Calendar, Clock, MapPin, MessageSquare, CheckCircle, AlertTriangle, FileText, XCircle, ArrowLeft, ShieldCheck, FileCheck } from 'lucide-react';
+import { Calendar, Clock, MapPin, MessageSquare, CheckCircle, AlertTriangle, FileText, XCircle, ArrowLeft, ShieldCheck, FileCheck, Phone } from 'lucide-react';
 import { ReviewModal } from '../components/ReviewModal';
 import { InvoiceModal } from '../components/InvoiceModal';
+import { UpgradeModal } from '../components/UpgradeModal';
 
 interface BookingDetailProps {
   booking: Booking;
@@ -16,6 +18,7 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ booking, user, onNavigate
   const isProvider = user.currentRole === 'provider';
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
   const getStatusBadge = (status: BookingStatus) => {
     switch (status) {
@@ -166,12 +169,21 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ booking, user, onNavigate
                 </div>
 
                 <div className="mt-6 space-y-3">
-                    <button 
-                        onClick={() => onNavigate('messages', { bookingId: booking.id })}
-                        className="w-full flex items-center justify-center py-2.5 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-medium rounded-lg transition-colors"
-                    >
-                        <MessageSquare size={18} className="mr-2" /> Message {isProvider ? 'Customer' : 'Provider'}
-                    </button>
+                    <div className="flex gap-2">
+                        <button 
+                            onClick={() => onNavigate('messages', { bookingId: booking.id })}
+                            className="flex-grow flex items-center justify-center py-2.5 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-medium rounded-lg transition-colors"
+                        >
+                            <MessageSquare size={18} className="mr-2" /> Message
+                        </button>
+                        <button 
+                            onClick={() => setIsUpgradeModalOpen(true)}
+                            className="w-12 flex items-center justify-center border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors"
+                            title="Call Now"
+                        >
+                            <Phone size={18} />
+                        </button>
+                    </div>
 
                     {/* Provider Actions */}
                     {isProvider && booking.status === BookingStatus.PENDING && (
@@ -243,6 +255,12 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ booking, user, onNavigate
         isOpen={isInvoiceOpen}
         onClose={() => setIsInvoiceOpen(false)}
         booking={booking}
+      />
+
+      <UpgradeModal 
+        isOpen={isUpgradeModalOpen} 
+        onClose={() => setIsUpgradeModalOpen(false)} 
+        userRole={user.currentRole}
       />
     </div>
   );

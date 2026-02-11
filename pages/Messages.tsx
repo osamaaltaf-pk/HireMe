@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { UserProfile, Booking, Message } from '../types';
 import { MessageSquare, Search, Send, MoreVertical, Phone } from 'lucide-react';
 import { db } from '../services/db';
+import { UpgradeModal } from '../components/UpgradeModal';
 
 interface MessagesProps {
   user: UserProfile;
@@ -13,6 +14,7 @@ const Messages: React.FC<MessagesProps> = ({ user, bookings }) => {
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState('');
   const [activeMessages, setActiveMessages] = useState<Message[]>([]);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   // Trigger to force re-render of sidebar counts
   const [refreshTrigger, setRefreshTrigger] = useState(0); 
   
@@ -175,6 +177,13 @@ const Messages: React.FC<MessagesProps> = ({ user, bookings }) => {
                             </span>
                         </div>
                     </div>
+                    <button 
+                      onClick={() => setIsUpgradeModalOpen(true)}
+                      className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                      title="Direct Call"
+                    >
+                        <Phone size={20} />
+                    </button>
                  </div>
 
                  {/* Messages List */}
@@ -242,6 +251,12 @@ const Messages: React.FC<MessagesProps> = ({ user, bookings }) => {
                </div>
            )}
        </div>
+
+       <UpgradeModal 
+        isOpen={isUpgradeModalOpen} 
+        onClose={() => setIsUpgradeModalOpen(false)} 
+        userRole={user.currentRole}
+      />
     </div>
   );
 };
