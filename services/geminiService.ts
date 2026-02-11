@@ -1,11 +1,8 @@
-import { GoogleGenAI, Type } from "@google/genai";
-import { SERVICE_CATEGORIES } from "../constants";
 
-const apiKey = process.env.API_KEY || ''; // In a real app, handle missing key gracefully
-const ai = new GoogleGenAI({ apiKey });
+import { SERVICE_CATEGORIES, CITIES } from "../constants";
 
-// Helper to check if API key is present
-export const isGeminiConfigured = () => !!apiKey;
+// Helper to check if API key is present (Kept for compatibility, always true now as we don't need it)
+export const isGeminiConfigured = () => true;
 
 export interface CategoryAnalysisResult {
   categoryId: string | null;
@@ -14,74 +11,71 @@ export interface CategoryAnalysisResult {
   detectedLocation: string | null;
 }
 
+// Simple Keyword "Model"
+const CATEGORY_KEYWORDS: Record<string, string[]> = {
+  plumbing: ['plumber', 'plumbing', 'leak', 'pipe', 'tap', 'sink', 'water', 'drain', 'faucet', 'flush', 'toilet'],
+  electrical: ['electric', 'wiring', 'light', 'fan', 'switch', 'ups', 'generator', 'voltage', 'circuit', 'power', 'bulb'],
+  ac_repair: ['ac', 'air cond', 'cooling', 'service', 'gas', 'install', 'split', 'inverter', 'maintenance', 'heat', 'vent'],
+  cleaning: ['clean', 'dust', 'maid', 'sweep', 'wash', 'housekeeping', 'janitor', 'sofa', 'carpet', 'deep'],
+  auto_mechanic: ['car', 'mechanic', 'auto', 'repair', 'oil', 'engine', 'brake', 'tuning', 'tyre', 'tire', 'vehicle'],
+  home_tutor: ['tutor', 'teach', 'study', 'math', 'science', 'school', 'grade', 'exam', 'physics', 'chemistry', 'english']
+};
+
 export const analyzeServiceRequest = async (userQuery: string): Promise<CategoryAnalysisResult> => {
-  if (!apiKey) {
-    console.warn("Gemini API Key missing");
-    return { categoryId: null, reasoning: "API Key missing", suggestedSearchTerm: userQuery, detectedLocation: null };
+  const query = userQuery.toLowerCase();
+  
+  // 1. Detect Location
+  let detectedLocation: string | null = null;
+  // Check against known cities
+  for (const city of CITIES) {
+    if (query.includes(city.toLowerCase())) {
+      detectedLocation = city;
+      break;
+    }
   }
-
-  try {
-    const categoriesList = SERVICE_CATEGORIES.map(c => `${c.id} (${c.name})`).join(", ");
-    
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: `User Query: "${userQuery}"
-      
-      Available Categories: ${categoriesList}
-      
-      Task: Analyze the user's query.
-      1. Map it to the most relevant Service Category ID.
-      2. Extract any specific location mentioned (e.g., "Gulberg", "Clifton", "Lahore").
-      3. Provide a refined search term.
-      
-      If no category fits well, return null for categoryId.
-      If no location is mentioned, return null for detectedLocation.
-      `,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            categoryId: { type: Type.STRING, description: "The ID of the matching category or null" },
-            reasoning: { type: Type.STRING, description: "Why this category was chosen" },
-            suggestedSearchTerm: { type: Type.STRING, description: "A refined short search term" },
-            detectedLocation: { type: Type.STRING, description: "Any location entity detected in the prompt" }
-          }
-        }
+  // Fallback: Check for common areas if no city found (Simple mock for demo)
+  if (!detectedLocation) {
+    const commonAreas = ['gulberg', 'clifton', 'dha', 'bahria', 'f-10', 'johar'];
+    for (const area of commonAreas) {
+      if (query.includes(area)) {
+        detectedLocation = area.charAt(0).toUpperCase() + area.slice(1); // Capitalize
+        break;
       }
-    });
-
-    const text = response.text;
-    if (!text) throw new Error("No response from Gemini");
-    
-    return JSON.parse(text) as CategoryAnalysisResult;
-
-  } catch (error) {
-    console.error("Gemini Analysis Error:", error);
-    return { categoryId: null, reasoning: "Error analyzing request", suggestedSearchTerm: userQuery, detectedLocation: null };
+    }
   }
+
+  // 2. Detect Category (Scoring System)
+  let bestCategory = null;
+  let maxScore = 0;
+
+  for (const [catId, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+    let score = 0;
+    keywords.forEach(word => {
+      if (query.includes(word)) score += 1;
+    });
+    
+    if (score > maxScore) {
+      maxScore = score;
+      bestCategory = catId;
+    }
+  }
+
+  // 3. Construct Result
+  // If no category matched but query exists, we still return a sanitized term
+  const cleanTerm = userQuery
+    .replace(new RegExp(detectedLocation || '', 'gi'), '') // Remove location from search term
+    .replace(/in|at|near|fix|my|i|want|need|someone|to|please/gi, '') // Remove stop words
+    .trim();
+
+  return {
+    categoryId: bestCategory,
+    reasoning: bestCategory ? "Matched keywords in query" : "No specific category matched",
+    suggestedSearchTerm: cleanTerm || (bestCategory ? SERVICE_CATEGORIES.find(c => c.id === bestCategory)?.name || '' : userQuery),
+    detectedLocation: detectedLocation
+  };
 };
 
 export const enhanceProviderBio = async (currentBio: string, name: string, profession: string): Promise<string> => {
-  if (!apiKey) return currentBio;
-
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: `
-        You are a professional profile copywriter for a service marketplace called HireMe in Pakistan.
-        Improve the following bio for a service provider. 
-        Make it sound trustworthy, professional, and clear. Keep it under 50 words.
-        
-        Provider Name: ${name}
-        Profession: ${profession}
-        Current Bio: "${currentBio}"
-      `,
-    });
-    
-    return response.text || currentBio;
-  } catch (error) {
-    console.error("Gemini Bio Enhancement Error:", error);
-    return currentBio;
-  }
+  // Simple mock enhancement since we removed the LLM
+  return `Hi, I'm ${name}, a professional ${profession}. ${currentBio} I am dedicated to providing high-quality service with a focus on customer satisfaction and timely completion. Verified by HireMe.`;
 };

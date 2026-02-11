@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Search, MapPin, Star, ArrowRight, CheckCircle } from 'lucide-react';
 import { SERVICE_CATEGORIES, CITIES, MOCK_PROVIDERS } from '../constants';
@@ -9,30 +10,26 @@ interface HomeProps {
 
 const Home: React.FC<HomeProps> = ({ onNavigate }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisError, setAnalysisError] = useState<string | null>(null);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
 
-    setIsAnalyzing(true);
-    setAnalysisError(null);
-
-    // AI Smart Search
+    // Use local keyword analysis (instant)
     const result = await analyzeServiceRequest(searchQuery);
     
-    setIsAnalyzing(false);
-
     if (result.categoryId) {
       onNavigate('services', { 
           categoryId: result.categoryId, 
-          term: result.suggestedSearchTerm,
+          term: '', // Clear term so we see all providers in that category
           initialLocation: result.detectedLocation 
       });
     } else {
-      // Fallback to simple search or show error/suggestion
-       onNavigate('services', { term: searchQuery });
+       // If no category found, pass the raw term
+       onNavigate('services', { 
+         term: result.suggestedSearchTerm || searchQuery,
+         initialLocation: result.detectedLocation 
+       });
     }
   };
 
@@ -69,24 +66,12 @@ const Home: React.FC<HomeProps> = ({ onNavigate }) => {
               </div>
               <button
                 type="submit"
-                disabled={isAnalyzing}
-                className="w-full sm:w-auto bg-blue-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed"
+                className="w-full sm:w-auto bg-blue-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center"
               >
-                {isAnalyzing ? (
-                   <>
-                     <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                     </svg>
-                     AI Matching...
-                   </>
-                ) : (
-                  'Search'
-                )}
+                Search
               </button>
             </form>
           </div>
-          {analysisError && <p className="text-red-200 mt-2 text-sm">{analysisError}</p>}
           <p className="text-blue-200 mt-4 text-sm font-medium">
             Try: "AC service in Gulberg" or "Need a plumber for sink"
           </p>
@@ -104,7 +89,6 @@ const Home: React.FC<HomeProps> = ({ onNavigate }) => {
               className="flex flex-col items-center p-6 bg-white border border-slate-100 rounded-xl shadow-sm hover:shadow-md hover:border-blue-200 transition-all group"
             >
               <div className="h-12 w-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-3 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                {/* Icons are purely decorative here, using simple logic or lucide in real implementation */}
                 <div className="font-bold text-lg">{cat.name[0]}</div>
               </div>
               <span className="font-medium text-slate-700 text-sm text-center group-hover:text-blue-700">{cat.name}</span>
