@@ -1,7 +1,9 @@
+
 import React, { useState } from 'react';
 import { UserProfile } from '../types';
-import { ShieldCheck, Mail, ArrowRight } from 'lucide-react';
+import { Mail, ArrowRight } from 'lucide-react';
 import { db } from '../services/db';
+import { Logo } from '../components/Logo';
 
 interface AuthProps {
   onLogin: (user: UserProfile) => void;
@@ -72,9 +74,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center mb-6">
-          <div className="bg-blue-600 p-3 rounded-xl shadow-lg shadow-blue-200">
-             <ShieldCheck className="h-10 w-10 text-white" />
-          </div>
+          <Logo className="h-20 w-20 text-blue-600 drop-shadow-xl" />
         </div>
         <h2 className="text-center text-3xl font-extrabold text-slate-900 tracking-tight">
           Sign in to HireMe

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { UserProfile, Booking, Message } from '../types';
 import { MessageSquare, Search, Send, MoreVertical, Phone } from 'lucide-react';
@@ -13,14 +14,23 @@ const Messages: React.FC<MessagesProps> = ({ user, bookings }) => {
   const [messageInput, setMessageInput] = useState('');
   const [activeMessages, setActiveMessages] = useState<Message[]>([]);
   
-  // Filter bookings to finding chat-able contacts
-  // A chat exists for every booking
-  const myChats = bookings.filter(b => 
-    b.customerId === user.id || b.providerId === user.id
-  ).map(b => {
-    const isImCustomer = b.customerId === user.id;
-    const partnerName = isImCustomer ? b.providerName : (b.customerName || `Customer #${b.customerId.slice(0,5)}`);
-    const partnerId = isImCustomer ? b.providerId : b.customerId;
+  const isProviderView = user.currentRole === 'provider';
+
+  // Filter bookings to find chat-able contacts based on ACTIVE ROLE only
+  // If acting as provider, only show jobs where I am the provider.
+  // If acting as customer, only show bookings where I am the customer.
+  const myChats = bookings.filter(b => {
+    if (isProviderView) {
+      return b.providerId === user.id;
+    } else {
+      return b.customerId === user.id;
+    }
+  }).map(b => {
+    const partnerName = isProviderView 
+      ? (b.customerName || `Customer #${b.customerId.slice(0,5)}`) 
+      : b.providerName;
+    
+    const partnerId = isProviderView ? b.customerId : b.providerId;
     const partnerAvatar = `https://ui-avatars.com/api/?name=${partnerName}&background=random`;
     
     // Get last message for this booking
@@ -81,7 +91,12 @@ const Messages: React.FC<MessagesProps> = ({ user, bookings }) => {
        {/* Sidebar List */}
        <div className={`w-full md:w-80 border-r border-slate-200 flex flex-col ${selectedBookingId !== null ? 'hidden md:flex' : 'flex'}`}>
           <div className="p-4 border-b border-slate-200 bg-slate-50">
-             <h2 className="text-xl font-bold text-slate-900 mb-4">Messages</h2>
+             <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-slate-900">Messages</h2>
+                <span className="text-xs font-bold px-2 py-1 bg-blue-100 text-blue-700 rounded-full uppercase">
+                  {isProviderView ? 'Provider' : 'Customer'}
+                </span>
+             </div>
              <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
                 <input 
@@ -110,7 +125,7 @@ const Messages: React.FC<MessagesProps> = ({ user, bookings }) => {
                </div>
              )) : (
                  <div className="p-8 text-center text-slate-500">
-                     No active bookings found. Book a service to start chatting.
+                     No active {isProviderView ? 'jobs' : 'bookings'} found.
                  </div>
              )}
           </div>
@@ -183,7 +198,7 @@ const Messages: React.FC<MessagesProps> = ({ user, bookings }) => {
                    </div>
                    <h3 className="text-xl font-bold text-slate-900 mb-2">Your Messages</h3>
                    <p className="text-slate-500 max-w-xs">
-                     Select a conversation from the left to chat with your service partners.
+                     Select a conversation from the left to chat with your {isProviderView ? 'customers' : 'service providers'}.
                    </p>
                </div>
            )}

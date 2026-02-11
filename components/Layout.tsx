@@ -1,7 +1,9 @@
+
 import React, { useState } from 'react';
 import { UserProfile } from '../types';
 import { LogOut, User, Menu, X, ShieldCheck, MapPin, AlertCircle, Home, Search, Calendar, MessageSquare, Repeat, Bell } from 'lucide-react';
 import { ComplaintModal } from './ComplaintModal';
+import { Logo } from './Logo';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -49,9 +51,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onNavigate, o
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center cursor-pointer" onClick={() => onNavigate('home')}>
-              <div className="bg-blue-600 p-2 rounded-lg mr-2 shadow-sm">
-                <ShieldCheck className="h-6 w-6 text-white" />
-              </div>
+              <Logo className="h-10 w-10 text-blue-600 mr-2" />
               <span className="text-xl font-bold text-slate-800 tracking-tight">HireMe</span>
             </div>
 
@@ -138,7 +138,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onNavigate, o
       {/* Mobile Top Bar */}
       <div className="md:hidden bg-white border-b border-slate-200 sticky top-0 z-40 px-4 h-14 flex items-center justify-between">
          <div className="flex items-center font-bold text-slate-800">
-            <ShieldCheck className="h-6 w-6 text-blue-600 mr-2" />
+            <Logo className="h-8 w-8 text-blue-600 mr-2" />
             HireMe
          </div>
          <div className="flex items-center gap-3">
@@ -177,7 +177,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onNavigate, o
         <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8 text-sm">
           <div className="md:col-span-1">
             <div className="flex items-center mb-4">
-               <ShieldCheck className="h-6 w-6 text-blue-500 mr-2" />
+               <Logo className="h-8 w-8 text-blue-500 mr-2" />
                <span className="text-lg font-bold text-white">HireMe</span>
             </div>
             <p className="mb-4 text-slate-500">Connecting Pakistan's best professionals with customers who need trusted help.</p>

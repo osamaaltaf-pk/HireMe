@@ -1,6 +1,8 @@
+
 import React from 'react';
 import { Booking } from '../types';
-import { X, Printer, ShieldCheck } from 'lucide-react';
+import { X, Printer } from 'lucide-react';
+import { Logo } from './Logo';
 
 interface InvoiceModalProps {
   isOpen: boolean;
@@ -20,7 +22,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, boo
         <div className="p-6 border-b border-slate-100 flex justify-between items-start bg-slate-50">
            <div>
               <div className="flex items-center gap-2 mb-1">
-                 <ShieldCheck className="text-blue-600 h-6 w-6" />
+                 <Logo className="text-blue-600 h-8 w-8" />
                  <span className="text-xl font-bold text-slate-900 tracking-tight">HireMe Invoice</span>
               </div>
               <p className="text-xs text-slate-500">Receipt #{booking.id.toUpperCase()}</p>
