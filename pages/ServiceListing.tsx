@@ -2,14 +2,14 @@ import React, { useState, useMemo } from 'react';
 import { SERVICE_CATEGORIES, CITIES } from '../constants';
 import { ProviderDetails } from '../types';
 import { db } from '../services/db';
-import { MapPin, Filter, Calendar, Check, X, ArrowRight, Sparkles, Map as MapIcon, List } from 'lucide-react';
+import { MapPin, Filter, Calendar, Check, X, ArrowRight, Sparkles, Map as MapIcon, List, SlidersHorizontal, DollarSign, Briefcase } from 'lucide-react';
 import { StarRating } from '../components/StarRating';
 import { ServiceMap } from '../components/ServiceMap';
 
 interface ServiceListingProps {
   initialCategory?: string;
   initialTerm?: string;
-  initialLocation?: string; // New prop from analysis
+  initialLocation?: string;
   onBook: (providerId: string, date: string) => void;
   userRole?: string;
   onNavigate?: (page: string, params: any) => void;
@@ -20,6 +20,11 @@ const ServiceListing: React.FC<ServiceListingProps> = ({ initialCategory, initia
   const [selectedCity, setSelectedCity] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>(initialTerm || '');
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Advanced Filters State
+  const [priceRange, setPriceRange] = useState<{min: number; max: number}>({ min: 0, max: 10000 });
+  const [minExperience, setMinExperience] = useState<number>(0);
   
   // Booking Modal State
   const [bookingProvider, setBookingProvider] = useState<ProviderDetails & { fullName: string } | null>(null);
@@ -42,9 +47,13 @@ const ServiceListing: React.FC<ServiceListingProps> = ({ initialCategory, initia
                             provider.fullName.toLowerCase().includes(termLower) || 
                             provider.bio.toLowerCase().includes(termLower) ||
                             provider.categories.some(c => c.includes(termLower)) ||
-                            provider.location.toLowerCase().includes(termLower); // Search matches location text too
+                            provider.location.toLowerCase().includes(termLower);
+
+      // Advanced Filters
+      const matchesPrice = provider.hourlyRate >= priceRange.min && provider.hourlyRate <= priceRange.max;
+      const matchesExperience = provider.experienceYears >= minExperience;
                             
-      return matchesCategory && matchesCity && matchesSearch;
+      return matchesCategory && matchesCity && matchesSearch && matchesPrice && matchesExperience;
     });
 
     // 2. Rank/Sort based on Recommendation Score & Location Proximity
@@ -52,17 +61,15 @@ const ServiceListing: React.FC<ServiceListingProps> = ({ initialCategory, initia
       let scoreA = (a.rating * 0.7) + (Math.log10(a.reviewCount + 1) * 0.3);
       let scoreB = (b.rating * 0.7) + (Math.log10(b.reviewCount + 1) * 0.3);
 
-      // If a specific location term was detected (e.g. "Gulberg"), boost providers in that area
       if (initialLocation || searchTerm) {
          const locTerm = (initialLocation || searchTerm).toLowerCase();
-         if (a.location.toLowerCase().includes(locTerm)) scoreA += 3.0; // Huge boost for location match
+         if (a.location.toLowerCase().includes(locTerm)) scoreA += 3.0; 
          if (b.location.toLowerCase().includes(locTerm)) scoreB += 3.0;
       }
-
-      return scoreB - scoreA; // Descending
+      return scoreB - scoreA;
     });
 
-  }, [selectedCategory, selectedCity, searchTerm, initialLocation, allProviders]);
+  }, [selectedCategory, selectedCity, searchTerm, initialLocation, allProviders, priceRange, minExperience]);
 
   const handleBookingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,60 +89,128 @@ const ServiceListing: React.FC<ServiceListingProps> = ({ initialCategory, initia
       <div className="flex flex-col gap-4 mb-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between bg-white p-4 rounded-xl border border-slate-100 shadow-sm gap-4">
             <div>
-            <h1 className="text-2xl font-bold text-slate-900">Find Professionals</h1>
-            {(initialTerm || initialLocation) && (
-                <p className="text-sm text-slate-500 mt-1 flex items-center">
-                <Sparkles size={14} className="text-blue-500 mr-1" /> 
-                {initialLocation 
-                    ? `Showing experts near "${initialLocation}" for "${initialTerm || 'service'}"` 
-                    : `Recommended results for "${initialTerm}"`
-                }
-                </p>
-            )}
+              <h1 className="text-2xl font-bold text-slate-900">Find Professionals</h1>
+              {(initialTerm || initialLocation) && (
+                  <p className="text-sm text-slate-500 mt-1 flex items-center">
+                  <Sparkles size={14} className="text-blue-500 mr-1" /> 
+                  {initialLocation 
+                      ? `Showing experts near "${initialLocation}" for "${initialTerm || 'service'}"` 
+                      : `Recommended results for "${initialTerm}"`
+                  }
+                  </p>
+              )}
             </div>
             
             <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative">
-                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400"/>
-                <select 
-                className="pl-9 pr-4 py-2 border border-slate-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none hover:border-blue-300 transition-colors"
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                >
-                <option value="all">All Categories</option>
-                {SERVICE_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-            </div>
-            
-            <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400"/>
-                <select 
-                className="pl-9 pr-4 py-2 border border-slate-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none hover:border-blue-300 transition-colors"
-                value={selectedCity}
-                onChange={(e) => setSelectedCity(e.target.value)}
-                >
-                <option value="all">All Cities</option>
-                {CITIES.map(city => <option key={city} value={city}>{city}</option>)}
-                </select>
-            </div>
+              <div className="relative">
+                  <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400"/>
+                  <select 
+                  className="pl-9 pr-4 py-2 border border-slate-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none hover:border-blue-300 transition-colors w-full sm:w-auto"
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  >
+                  <option value="all">All Categories</option>
+                  {SERVICE_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+              </div>
+              
+              <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400"/>
+                  <select 
+                  className="pl-9 pr-4 py-2 border border-slate-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none hover:border-blue-300 transition-colors w-full sm:w-auto"
+                  value={selectedCity}
+                  onChange={(e) => setSelectedCity(e.target.value)}
+                  >
+                  <option value="all">All Cities</option>
+                  {CITIES.map(city => <option key={city} value={city}>{city}</option>)}
+                  </select>
+              </div>
 
-            {/* View Toggle */}
-            <div className="flex bg-slate-100 p-1 rounded-lg">
-                <button 
-                    onClick={() => setViewMode('list')}
-                    className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                    <List size={18} />
-                </button>
-                <button 
-                    onClick={() => setViewMode('map')}
-                    className={`p-2 rounded-md transition-all ${viewMode === 'map' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                >
-                    <MapIcon size={18} />
-                </button>
-            </div>
+              <button 
+                onClick={() => setShowFilters(!showFilters)}
+                className={`flex items-center justify-center px-3 py-2 border rounded-lg transition-colors ${showFilters ? 'bg-blue-50 border-blue-200 text-blue-600' : 'border-slate-300 hover:bg-slate-50 text-slate-600'}`}
+              >
+                <SlidersHorizontal size={18} />
+              </button>
+
+              {/* View Toggle */}
+              <div className="flex bg-slate-100 p-1 rounded-lg w-fit">
+                  <button 
+                      onClick={() => setViewMode('list')}
+                      className={`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                      <List size={18} />
+                  </button>
+                  <button 
+                      onClick={() => setViewMode('map')}
+                      className={`p-2 rounded-md transition-all ${viewMode === 'map' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                      <MapIcon size={18} />
+                  </button>
+              </div>
             </div>
         </div>
+      
+        {/* Advanced Filters Panel */}
+        {showFilters && (
+          <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm animate-in fade-in slide-in-from-top-2">
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                   <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center">
+                     <DollarSign size={14} className="mr-1"/> Hourly Rate (PKR)
+                   </label>
+                   <div className="flex items-center gap-2">
+                      <input 
+                        type="number" 
+                        placeholder="Min" 
+                        className="w-full border rounded px-2 py-1 text-sm"
+                        value={priceRange.min || ''}
+                        onChange={(e) => setPriceRange({...priceRange, min: parseInt(e.target.value) || 0})}
+                      />
+                      <span className="text-slate-400">-</span>
+                      <input 
+                        type="number" 
+                        placeholder="Max" 
+                        className="w-full border rounded px-2 py-1 text-sm"
+                        value={priceRange.max === 10000 ? '' : priceRange.max}
+                        onChange={(e) => setPriceRange({...priceRange, max: parseInt(e.target.value) || 10000})}
+                      />
+                   </div>
+                </div>
+                
+                <div>
+                   <label className="block text-xs font-bold text-slate-500 uppercase mb-2 flex items-center">
+                     <Briefcase size={14} className="mr-1"/> Experience
+                   </label>
+                   <select 
+                     className="w-full border rounded px-2 py-1.5 text-sm"
+                     value={minExperience}
+                     onChange={(e) => setMinExperience(parseInt(e.target.value))}
+                   >
+                      <option value="0">Any Experience</option>
+                      <option value="2">2+ Years</option>
+                      <option value="5">5+ Years</option>
+                      <option value="10">10+ Years</option>
+                   </select>
+                </div>
+
+                <div className="flex items-end">
+                   <button 
+                      onClick={() => {
+                        setPriceRange({ min: 0, max: 10000 });
+                        setMinExperience(0);
+                        setSelectedCategory('all');
+                        setSelectedCity('all');
+                        setSearchTerm('');
+                      }}
+                      className="text-sm text-blue-600 hover:underline mb-1"
+                   >
+                     Reset Filters
+                   </button>
+                </div>
+             </div>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6">
@@ -146,8 +221,8 @@ const ServiceListing: React.FC<ServiceListingProps> = ({ initialCategory, initia
                 sortedProviders.map((provider, index) => (
                     <div key={provider.id} className={`bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col group relative ${viewMode === 'map' && bookingProvider?.id === provider.id ? 'ring-2 ring-blue-500' : ''}`}>
                     
-                    {/* Recommendation Badge logic updated to include location */}
-                    {index < 2 && (initialCategory || initialTerm || initialLocation) && (
+                    {/* Recommendation Badge */}
+                    {index < 2 && (
                         <div className="absolute top-0 right-0 bg-gradient-to-l from-amber-100 to-transparent pl-4 pr-2 py-1 rounded-bl-xl z-10">
                         <span className="text-[10px] font-bold text-amber-700 flex items-center uppercase tracking-wide">
                             <Sparkles size={10} className="mr-1" /> Recommended
@@ -211,8 +286,8 @@ const ServiceListing: React.FC<ServiceListingProps> = ({ initialCategory, initia
                     <Filter className="h-10 w-10 text-slate-300" />
                     </div>
                     <h3 className="text-lg font-medium text-slate-900">No providers found</h3>
-                    <p className="text-slate-500">Try adjusting your filters or search term.</p>
-                    <button onClick={() => {setSearchTerm(''); setSelectedCategory('all'); setSelectedCity('all');}} className="mt-4 text-blue-600 font-medium hover:underline">Clear all filters</button>
+                    <p className="text-slate-500">Try adjusting your filters.</p>
+                    <button onClick={() => {setPriceRange({ min: 0, max: 10000 }); setMinExperience(0); setSelectedCategory('all'); setSelectedCity('all'); setSearchTerm('');}} className="mt-4 text-blue-600 font-medium hover:underline">Clear all filters</button>
                 </div>
                 )}
             </div>

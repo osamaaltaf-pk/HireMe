@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { UserProfile, ProviderDetails } from '../types';
+import React, { useState } from 'react';
+import { UserProfile, ProviderDetails, BookingStatus } from '../types';
 import { enhanceProviderBio } from '../services/geminiService';
-import { Save, Wand2, DollarSign, MapPin, Award } from 'lucide-react';
+import { Save, Wand2, DollarSign, MapPin, Award, TrendingUp, Clock, CheckCircle } from 'lucide-react';
 import { CITIES, SERVICE_CATEGORIES } from '../constants';
 import { db } from '../services/db';
 
@@ -29,7 +29,7 @@ const ProviderDashboard: React.FC<DashboardProps> = ({ user }) => {
 
   const [profile, setProfile] = useState<ProviderDetails>(initialProfile);
   const [isEnhancing, setIsEnhancing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'profile' | 'bookings'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'bookings' | 'earnings'>('profile');
   const [providerBookings, setProviderBookings] = useState(db.getBookings().filter(b => b.providerId === user.id));
 
   const handleEnhanceBio = async () => {
@@ -45,22 +45,43 @@ const ProviderDashboard: React.FC<DashboardProps> = ({ user }) => {
     alert('Profile updated successfully!');
   };
 
+  // Earnings Calculation
+  const completedBookings = providerBookings.filter(b => b.status === BookingStatus.COMPLETED);
+  const totalEarnings = completedBookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+  const pendingPayouts = providerBookings.filter(b => b.status === BookingStatus.IN_PROGRESS).reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+  const platformFee = totalEarnings * 0.10;
+  const netEarnings = totalEarnings - platformFee;
+
+  // Chart data preparation (Mocking monthly data)
+  const monthlyData = [
+      { month: 'Jan', amount: 12000 }, { month: 'Feb', amount: 19000 }, 
+      { month: 'Mar', amount: 15000 }, { month: 'Apr', amount: 32000 },
+      { month: 'May', amount: 24000 }, { month: 'Jun', amount: netEarnings || 5000 }
+  ];
+  const maxAmount = Math.max(...monthlyData.map(d => d.amount));
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold text-slate-900 mb-6">Provider Dashboard</h1>
       
-      <div className="flex space-x-4 mb-6 border-b border-slate-200">
+      <div className="flex space-x-4 mb-6 border-b border-slate-200 overflow-x-auto">
         <button 
-          className={`pb-3 px-1 font-medium text-sm ${activeTab === 'profile' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500'}`}
+          className={`pb-3 px-1 font-medium text-sm whitespace-nowrap ${activeTab === 'profile' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500'}`}
           onClick={() => setActiveTab('profile')}
         >
           Profile Settings
         </button>
         <button 
-           className={`pb-3 px-1 font-medium text-sm ${activeTab === 'bookings' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500'}`}
+           className={`pb-3 px-1 font-medium text-sm whitespace-nowrap ${activeTab === 'bookings' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500'}`}
            onClick={() => setActiveTab('bookings')}
         >
           Bookings ({providerBookings.length})
+        </button>
+        <button 
+           className={`pb-3 px-1 font-medium text-sm whitespace-nowrap ${activeTab === 'earnings' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500'}`}
+           onClick={() => setActiveTab('earnings')}
+        >
+          Earnings
         </button>
       </div>
 
@@ -185,7 +206,6 @@ const ProviderDashboard: React.FC<DashboardProps> = ({ user }) => {
            {providerBookings.length > 0 ? (
                <div className="text-left">
                   <p className="text-slate-500 mb-4">You have {providerBookings.length} booking(s).</p>
-                  {/* Reuse Booking component style here implicitly or link to main bookings page */}
                   <a href="#" className="text-blue-600 hover:underline">Go to Bookings Tab to manage</a>
                </div>
            ) : (
@@ -197,6 +217,100 @@ const ProviderDashboard: React.FC<DashboardProps> = ({ user }) => {
                 <p className="text-slate-500 mt-2">Complete your profile to start receiving job requests.</p>
              </>
            )}
+        </div>
+      )}
+
+      {activeTab === 'earnings' && (
+        <div className="space-y-8">
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                 <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center">
+                        <TrendingUp size={24} />
+                    </div>
+                    <div>
+                        <p className="text-sm text-slate-500 font-medium">Net Earnings</p>
+                        <h3 className="text-2xl font-bold text-slate-900">Rs. {netEarnings.toLocaleString()}</h3>
+                    </div>
+                 </div>
+                 <div className="mt-4 text-xs text-slate-400">Total earned after fees</div>
+              </div>
+              
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                 <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center">
+                        <Clock size={24} />
+                    </div>
+                    <div>
+                        <p className="text-sm text-slate-500 font-medium">Pending Payouts</p>
+                        <h3 className="text-2xl font-bold text-slate-900">Rs. {pendingPayouts.toLocaleString()}</h3>
+                    </div>
+                 </div>
+                 <div className="mt-4 text-xs text-slate-400">Available after completion</div>
+              </div>
+
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                 <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center">
+                        <CheckCircle size={24} />
+                    </div>
+                    <div>
+                        <p className="text-sm text-slate-500 font-medium">Completed Jobs</p>
+                        <h3 className="text-2xl font-bold text-slate-900">{completedBookings.length}</h3>
+                    </div>
+                 </div>
+                 <div className="mt-4 text-xs text-slate-400">Successful services</div>
+              </div>
+           </div>
+
+           {/* Chart Section */}
+           <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+               <h3 className="text-lg font-bold text-slate-900 mb-6">Earnings Overview (Last 6 Months)</h3>
+               <div className="flex items-end justify-between h-48 gap-4 px-4">
+                   {monthlyData.map((data, idx) => (
+                       <div key={idx} className="flex flex-col items-center w-full group">
+                           <div className="relative w-full flex justify-center">
+                               <div 
+                                 className="w-8 md:w-12 bg-blue-500 rounded-t-lg transition-all duration-500 group-hover:bg-blue-600"
+                                 style={{ height: `${(data.amount / maxAmount) * 150}px` }}
+                               ></div>
+                               <div className="absolute -top-8 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                                   Rs.{data.amount/1000}k
+                               </div>
+                           </div>
+                           <span className="text-xs font-medium text-slate-500 mt-2">{data.month}</span>
+                       </div>
+                   ))}
+               </div>
+           </div>
+
+           {/* Recent Transactions */}
+           <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+               <h3 className="text-lg font-bold text-slate-900 mb-4">Recent Transactions</h3>
+               {completedBookings.length > 0 ? (
+                  <div className="space-y-4">
+                     {completedBookings.slice(0, 5).map(booking => (
+                        <div key={booking.id} className="flex justify-between items-center py-3 border-b border-slate-50 last:border-0">
+                           <div className="flex items-center gap-3">
+                              <div className="h-10 w-10 bg-green-50 text-green-600 rounded-full flex items-center justify-center">
+                                 <DollarSign size={16} />
+                              </div>
+                              <div>
+                                 <p className="font-medium text-slate-900">{booking.serviceCategory} Service</p>
+                                 <p className="text-xs text-slate-500">{new Date(booking.scheduledAt).toLocaleDateString()}</p>
+                              </div>
+                           </div>
+                           <div className="text-right">
+                               <p className="font-bold text-slate-900">+ Rs. {(booking.totalPrice * 0.9).toLocaleString()}</p>
+                               <p className="text-xs text-green-600">Paid</p>
+                           </div>
+                        </div>
+                     ))}
+                  </div>
+               ) : (
+                  <p className="text-slate-500 text-center py-4">No completed transactions yet.</p>
+               )}
+           </div>
         </div>
       )}
     </div>

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { UserProfile } from '../types';
 import ProviderDashboard from './ProviderDashboard';
-import { User, MapPin, Mail, Phone, Settings, LogOut } from 'lucide-react';
+import { User, MapPin, Mail, Phone, Settings, LogOut, Edit2, Save } from 'lucide-react';
+import { db } from '../services/db';
 
 interface ProfileProps {
   user: UserProfile;
@@ -10,11 +11,21 @@ interface ProfileProps {
 }
 
 const Profile: React.FC<ProfileProps> = ({ user, onLogout, onBecomeProvider }) => {
+  const [isEditingAddress, setIsEditingAddress] = useState(false);
+  const [address, setAddress] = useState(user.location || '');
   
   // If the user is viewing as a Provider, show the Provider Dashboard (Bio, Rates, etc.)
   if (user.currentRole === 'provider') {
     return <ProviderDashboard user={user} />;
   }
+
+  const handleSaveAddress = () => {
+    // Save to DB (mock update to user object)
+    const updatedUser = { ...user, location: address };
+    db.saveUser(updatedUser);
+    localStorage.setItem('hireme_user', JSON.stringify(updatedUser)); // Persist locally for App state
+    setIsEditingAddress(false);
+  };
 
   // Otherwise, show Customer Profile
   return (
@@ -43,11 +54,26 @@ const Profile: React.FC<ProfileProps> = ({ user, onLogout, onBecomeProvider }) =
              <div className="mt-8 space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="p-4 border border-slate-100 rounded-lg bg-slate-50">
-                       <h3 className="font-semibold text-slate-900 mb-3 flex items-center">
-                          <MapPin size={18} className="mr-2 text-slate-400" /> Saved Addresses
+                       <h3 className="font-semibold text-slate-900 mb-3 flex items-center justify-between">
+                          <span className="flex items-center"><MapPin size={18} className="mr-2 text-slate-400" /> Primary Address</span>
+                          {!isEditingAddress ? (
+                              <button onClick={() => setIsEditingAddress(true)} className="text-xs text-blue-600 flex items-center"><Edit2 size={12} className="mr-1"/> Edit</button>
+                          ) : (
+                              <button onClick={handleSaveAddress} className="text-xs text-green-600 flex items-center"><Save size={12} className="mr-1"/> Save</button>
+                          )}
                        </h3>
-                       <p className="text-sm text-slate-500 italic">No addresses saved yet.</p>
-                       <button className="text-blue-600 text-sm font-medium mt-2 hover:underline">+ Add Address</button>
+                       
+                       {isEditingAddress ? (
+                           <input 
+                              type="text" 
+                              className="w-full border rounded p-2 text-sm"
+                              value={address}
+                              onChange={(e) => setAddress(e.target.value)}
+                              placeholder="Enter your home address..."
+                           />
+                       ) : (
+                           <p className="text-sm text-slate-500 italic">{user.location || 'No address saved.'}</p>
+                       )}
                     </div>
                     
                     <div className="p-4 border border-slate-100 rounded-lg bg-slate-50">

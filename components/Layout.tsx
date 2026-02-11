@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserProfile } from '../types';
-import { LogOut, User, Menu, X, ShieldCheck, MapPin, AlertCircle, Home, Search, Calendar, MessageSquare, Repeat } from 'lucide-react';
+import { LogOut, User, Menu, X, ShieldCheck, MapPin, AlertCircle, Home, Search, Calendar, MessageSquare, Repeat, Bell } from 'lucide-react';
 import { ComplaintModal } from './ComplaintModal';
 
 interface LayoutProps {
@@ -15,6 +15,13 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onNavigate, onToggleRole, activePage }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isComplaintOpen, setIsComplaintOpen] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  // Mock Notifications
+  const notifications = [
+      { id: 1, text: "Welcome to HireMe! Complete your profile.", time: "2h ago", isRead: false },
+      { id: 2, text: "New service categories added near you.", time: "1d ago", isRead: true }
+  ];
 
   const NavItem = ({ page, label, icon: Icon }: { page: string; label: string; icon: any }) => (
     <button
@@ -70,6 +77,34 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, onNavigate, o
                         Switch to {user.currentRole === 'customer' ? 'Provider' : 'Customer'}
                       </button>
                     )}
+
+                    {/* Notification Bell */}
+                    <div className="relative">
+                        <button 
+                            onClick={() => setShowNotifications(!showNotifications)}
+                            className="p-2 text-slate-500 hover:bg-slate-50 rounded-full relative"
+                        >
+                            <Bell size={20} />
+                            <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-white"></span>
+                        </button>
+
+                        {showNotifications && (
+                            <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden animate-in fade-in zoom-in duration-200">
+                                <div className="p-3 bg-slate-50 border-b border-slate-100 font-semibold text-slate-700">Notifications</div>
+                                <div className="max-h-64 overflow-y-auto">
+                                    {notifications.map(n => (
+                                        <div key={n.id} className={`p-3 border-b border-slate-50 hover:bg-blue-50 cursor-pointer ${!n.isRead ? 'bg-blue-50/50' : ''}`}>
+                                            <p className="text-sm text-slate-800">{n.text}</p>
+                                            <p className="text-xs text-slate-400 mt-1">{n.time}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="p-2 text-center border-t border-slate-100">
+                                    <button className="text-xs text-blue-600 font-medium hover:underline">Mark all as read</button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
 
                     <div className="flex items-center gap-3 border-l border-slate-200 pl-4">
                       <button 

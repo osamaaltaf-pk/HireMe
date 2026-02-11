@@ -179,7 +179,8 @@ const App: React.FC = () => {
         <Auth onLogin={handleLogin} />
       )}
       
-      {currentPage === 'services' && (
+      {/* Route 'explore' to ServiceListing as well */}
+      {(currentPage === 'services' || currentPage === 'explore') && (
         <ServiceListing 
           initialCategory={pageParams.categoryId} 
           initialTerm={pageParams.term}

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Booking, BookingStatus, UserProfile } from '../types';
-import { Calendar, Clock, MapPin, MessageSquare, CheckCircle, AlertTriangle, FileText, XCircle, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { Calendar, Clock, MapPin, MessageSquare, CheckCircle, AlertTriangle, FileText, XCircle, ArrowLeft, ShieldCheck, FileCheck } from 'lucide-react';
 import { ReviewModal } from '../components/ReviewModal';
+import { InvoiceModal } from '../components/InvoiceModal';
 
 interface BookingDetailProps {
   booking: Booking;
@@ -14,6 +15,7 @@ interface BookingDetailProps {
 const BookingDetail: React.FC<BookingDetailProps> = ({ booking, user, onNavigate, onUpdateStatus, onAddReview }) => {
   const isProvider = user.currentRole === 'provider';
   const [isReviewOpen, setIsReviewOpen] = useState(false);
+  const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
 
   const getStatusBadge = (status: BookingStatus) => {
     switch (status) {
@@ -148,10 +150,19 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ booking, user, onNavigate
                             <span>Rs. {Math.round(booking.totalPrice * 1.1)}</span>
                         </div>
                     </div>
-                    <div className="mt-4 flex items-center gap-2 text-xs text-slate-500 bg-white p-2 rounded border border-slate-100">
-                        <AlertTriangle size={14} className="text-amber-500" />
-                        Payment is released after completion.
-                    </div>
+                    {booking.status === BookingStatus.COMPLETED ? (
+                         <div className="mt-4 flex items-center justify-between">
+                            <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">PAID</span>
+                            <button onClick={() => setIsInvoiceOpen(true)} className="text-xs text-blue-600 hover:underline flex items-center">
+                               <FileCheck size={14} className="mr-1" /> View Invoice
+                            </button>
+                         </div>
+                    ) : (
+                        <div className="mt-4 flex items-center gap-2 text-xs text-slate-500 bg-white p-2 rounded border border-slate-100">
+                            <AlertTriangle size={14} className="text-amber-500" />
+                            Payment is released after completion.
+                        </div>
+                    )}
                 </div>
 
                 <div className="mt-6 space-y-3">
@@ -226,6 +237,12 @@ const BookingDetail: React.FC<BookingDetailProps> = ({ booking, user, onNavigate
         onClose={() => setIsReviewOpen(false)} 
         onSubmit={handleReviewSubmit}
         providerName={booking.providerName}
+      />
+      
+      <InvoiceModal 
+        isOpen={isInvoiceOpen}
+        onClose={() => setIsInvoiceOpen(false)}
+        booking={booking}
       />
     </div>
   );
