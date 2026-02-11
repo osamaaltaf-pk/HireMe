@@ -1,0 +1,651 @@
+# CLAUDE.md — HireMe Project
+> AI Agent Context File · Compatible with: Claude Code, Cursor, OpenCode, Windsurf, Codex, Replit, Amp
+
+---
+
+## 🚨 CRITICAL RULES (Always Follow)
+
+- **Plan before you code.** For any task larger than a bug fix, write a plan in `plan.md` and wait for approval.
+- **One feature at a time.** Complete → test → verify before moving to next.
+- **Never break existing tests.** Run the test suite before and after every change.
+- **Ask, don't assume.** If requirements are ambiguous, ask rather than guess.
+- **No magic commits.** Never run `git commit` or `git push` unless explicitly instructed.
+- **Minimal surface changes.** Only touch files directly relevant to the current task.
+- **No dead code.** No console.logs, unused imports, or commented-out blocks in commits.
+
+---
+
+## 🎯 PROJECT OVERVIEW
+
+```
+App Name:       HireMe
+Type:           Two-sided local services marketplace (B2C + B2B)
+One-liner:      Connect users with verified local service professionals — plumbers,
+                electricians, mechanics, doctors, clinic assistants, and more.
+Target users:   (1) Consumers needing home/personal services
+                (2) Service professionals seeking digital job acquisition
+Initial market: Karachi, Lahore, Islamabad (Pakistan) → UAE & GCC expansion
+Revenue model:  Booking commissions + premium provider subscriptions +
+                sponsored search placements + enterprise partnerships
+Comparable:     Thumbtack ($3.2B), Angi/HomeAdvisor, TaskRabbit, Yelp
+```
+
+---
+
+## 🏗️ TECH STACK
+
+| Layer          | Technology                          | Notes                                     |
+|----------------|-------------------------------------|-------------------------------------------|
+| Frontend       | Next.js 14 (App Router)             | React Server Components by default        |
+| Styling        | Tailwind CSS + shadcn/ui            | Mobile-first, RTL-ready for Urdu/Arabic   |
+| State Mgmt     | Zustand + React Query (TanStack)    | Server state via React Query              |
+| Backend        | Next.js API Routes + tRPC           | Type-safe end-to-end                      |
+| Database       | PostgreSQL (Supabase)               | Hosted, includes realtime + storage       |
+| ORM            | Prisma                              | Type-safe DB access                       |
+| Auth           | Supabase Auth                       | Phone OTP (Pakistani numbers), Google SSO |
+| File Storage   | Supabase Storage                    | Profile photos, certifications, invoices  |
+| Realtime/Chat  | Supabase Realtime                   | In-app messaging                          |
+| Maps/Location  | Google Maps SDK + Places API        | Service area radius, provider discovery   |
+| Payments       | Stripe + JazzCash/EasyPaisa         | Card + local Pakistani payment methods    |
+| Email/SMS      | Resend (email) + Twilio (SMS/OTP)   |                                           |
+| Push Notifs    | Firebase Cloud Messaging (FCM)      |                                           |
+| Deployment     | Vercel (frontend) + Supabase (DB)   |                                           |
+| CI/CD          | GitHub Actions                      |                                           |
+
+### Architecture Pattern
+- **Monolith** (Next.js fullstack) for MVP — split later if needed
+- **REST + tRPC** hybrid: tRPC for internal type-safe calls, REST for webhooks/external
+- **Mobile-first** responsive web app (PWA-capable)
+
+---
+
+## 📁 FILE STRUCTURE
+
+```
+hireme/
+├── src/
+│   ├── app/
+│   │   ├── (public)/
+│   │   │   ├── page.tsx                    # Landing page
+│   │   │   ├── search/page.tsx             # Search & category browse
+│   │   │   ├── providers/[id]/page.tsx     # Public provider profile
+│   │   │   └── categories/[slug]/page.tsx  # Category listing page
+│   │   ├── (auth)/
+│   │   │   ├── login/page.tsx
+│   │   │   ├── signup/page.tsx
+│   │   │   └── onboarding/page.tsx         # Post-signup role selection
+│   │   ├── (customer)/
+│   │   │   ├── dashboard/page.tsx
+│   │   │   ├── bookings/page.tsx
+│   │   │   ├── bookings/[id]/page.tsx
+│   │   │   └── profile/page.tsx
+│   │   ├── (provider)/
+│   │   │   ├── pro/dashboard/page.tsx
+│   │   │   ├── pro/jobs/page.tsx
+│   │   │   ├── pro/jobs/[id]/page.tsx
+│   │   │   ├── pro/earnings/page.tsx
+│   │   │   ├── pro/profile/page.tsx
+│   │   │   └── pro/onboarding/page.tsx     # Provider verification flow
+│   │   ├── (shared)/
+│   │   │   ├── messages/page.tsx           # In-app messaging inbox
+│   │   │   └── messages/[threadId]/page.tsx
+│   │   ├── (admin)/
+│   │   │   ├── admin/page.tsx
+│   │   │   ├── admin/providers/page.tsx    # Verification queue
+│   │   │   ├── admin/bookings/page.tsx
+│   │   │   └── admin/reports/page.tsx
+│   │   ├── api/
+│   │   │   ├── trpc/[trpc]/route.ts
+│   │   │   ├── webhooks/stripe/route.ts
+│   │   │   └── webhooks/supabase/route.ts
+│   │   ├── layout.tsx
+│   │   └── globals.css
+│   ├── components/
+│   │   ├── ui/                             # shadcn/ui base components
+│   │   ├── provider/
+│   │   │   ├── ProviderCard.tsx
+│   │   │   ├── ProviderProfile.tsx
+│   │   │   └── VerificationBadge.tsx
+│   │   ├── booking/
+│   │   │   ├── BookingForm.tsx
+│   │   │   ├── BookingCard.tsx
+│   │   │   └── SchedulePicker.tsx
+│   │   ├── search/
+│   │   │   ├── SearchBar.tsx
+│   │   │   ├── CategoryGrid.tsx
+│   │   │   └── FilterPanel.tsx
+│   │   ├── messaging/
+│   │   │   ├── ChatWindow.tsx
+│   │   │   └── MessageBubble.tsx
+│   │   ├── maps/
+│   │   │   └── ServiceAreaMap.tsx
+│   │   └── shared/
+│   │       ├── StarRating.tsx
+│   │       ├── PriceDisplay.tsx
+│   │       └── StatusBadge.tsx
+│   ├── lib/
+│   │   ├── db.ts                           # Prisma client singleton
+│   │   ├── supabase.ts                     # Supabase client (server + browser)
+│   │   ├── auth.ts                         # Auth helpers
+│   │   ├── payments.ts                     # Stripe + local payment helpers
+│   │   ├── notifications.ts                # SMS/email/push helpers
+│   │   ├── maps.ts                         # Google Maps helpers
+│   │   └── utils.ts
+│   ├── server/
+│   │   ├── routers/
+│   │   │   ├── auth.ts
+│   │   │   ├── providers.ts
+│   │   │   ├── bookings.ts
+│   │   │   ├── reviews.ts
+│   │   │   ├── messages.ts
+│   │   │   ├── payments.ts
+│   │   │   └── admin.ts
+│   │   ├── trpc.ts                         # tRPC init + middleware
+│   │   └── context.ts
+│   ├── hooks/
+│   │   ├── useLocation.ts
+│   │   ├── useBooking.ts
+│   │   └── useMessages.ts
+│   ├── stores/
+│   │   ├── authStore.ts
+│   │   └── searchStore.ts
+│   └── types/
+│       ├── index.ts
+│       └── db.ts                           # Prisma generated types re-exports
+├── prisma/
+│   ├── schema.prisma
+│   └── seed.ts
+├── public/
+│   ├── categories/                         # Category icons (SVG)
+│   └── images/
+├── CLAUDE.md                               # This file
+├── plan.md                                 # Agent working plan
+├── progress.md                             # Agent progress tracker
+├── .env.example
+└── package.json
+```
+
+---
+
+## 🗄️ DATA MODELS (Prisma Schema)
+
+```prisma
+model User {
+  id              String          @id @default(cuid())
+  phone           String?         @unique
+  email           String?         @unique
+  name            String
+  avatar_url      String?
+  role            Role            @default(CUSTOMER)
+  deleted_at      DateTime?
+  created_at      DateTime        @default(now())
+  updated_at      DateTime        @updatedAt
+
+  customer_profile CustomerProfile?
+  provider_profile ProviderProfile?
+  bookings_made    Booking[]       @relation("CustomerBookings")
+  reviews_given    Review[]        @relation("ReviewerUser")
+  messages_sent    Message[]       @relation("SenderMessages")
+}
+
+enum Role { CUSTOMER  PROVIDER  ADMIN }
+
+model ProviderProfile {
+  id               String        @id @default(cuid())
+  user_id          String        @unique
+  user             User          @relation(fields: [user_id], references: [id])
+  bio              String?
+  category_id      String
+  category         Category      @relation(fields: [category_id], references: [id])
+  sub_categories   String[]
+  hourly_rate      Decimal?
+  location_city    String
+  location_lat     Float
+  location_lng     Float
+  service_radius_km Int          @default(10)
+  is_verified      Boolean       @default(false)
+  verification_docs String[]
+  rating_avg       Float         @default(0)
+  rating_count     Int           @default(0)
+  is_available     Boolean       @default(true)
+  subscription     SubscriptionTier @default(FREE)
+  stripe_account_id String?
+  created_at       DateTime      @default(now())
+
+  bookings         Booking[]
+  reviews          Review[]
+  certifications   Certification[]
+  availability     Availability[]
+}
+
+enum SubscriptionTier { FREE  BASIC  PRO  FEATURED }
+
+model CustomerProfile {
+  id        String   @id @default(cuid())
+  user_id   String   @unique
+  user      User     @relation(fields: [user_id], references: [id])
+  city      String?
+  address   String?
+  lat       Float?
+  lng       Float?
+  created_at DateTime @default(now())
+  bookings  Booking[]
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  icon_url    String
+  description String?
+  is_active   Boolean  @default(true)
+  sort_order  Int      @default(0)
+  parent_id   String?
+  parent      Category?  @relation("SubCategories", fields: [parent_id], references: [id])
+  children    Category[] @relation("SubCategories")
+  providers   ProviderProfile[]
+  bookings    Booking[]
+}
+
+model Booking {
+  id              String        @id @default(cuid())
+  customer_id     String
+  customer        CustomerProfile @relation(fields: [customer_id], references: [id])
+  provider_id     String
+  provider        ProviderProfile @relation(fields: [provider_id], references: [id])
+  category_id     String
+  category        Category      @relation(fields: [category_id], references: [id])
+  status          BookingStatus @default(PENDING)
+  description     String
+  address         String
+  lat             Float
+  lng             Float
+  scheduled_at    DateTime
+  duration_hours  Float?
+  quoted_price    Decimal?
+  final_price     Decimal?
+  platform_fee    Decimal?
+  notes           String?
+  deleted_at      DateTime?
+  created_at      DateTime      @default(now())
+  updated_at      DateTime      @updatedAt
+  payment         Payment?
+  review          Review?
+  messages        Message[]
+}
+
+enum BookingStatus {
+  PENDING ACCEPTED IN_PROGRESS COMPLETED CANCELLED DISPUTED
+}
+
+model Review {
+  id          String    @id @default(cuid())
+  booking_id  String    @unique
+  booking     Booking   @relation(fields: [booking_id], references: [id])
+  reviewer_id String
+  reviewer    User      @relation("ReviewerUser", fields: [reviewer_id], references: [id])
+  provider_id String
+  provider    ProviderProfile @relation(fields: [provider_id], references: [id])
+  rating      Int
+  comment     String?
+  reply       String?
+  created_at  DateTime  @default(now())
+}
+
+model Message {
+  id          String   @id @default(cuid())
+  booking_id  String
+  booking     Booking  @relation(fields: [booking_id], references: [id])
+  sender_id   String
+  sender      User     @relation("SenderMessages", fields: [sender_id], references: [id])
+  content     String
+  is_read     Boolean  @default(false)
+  created_at  DateTime @default(now())
+}
+
+model Payment {
+  id                       String        @id @default(cuid())
+  booking_id               String        @unique
+  booking                  Booking       @relation(fields: [booking_id], references: [id])
+  amount                   Decimal
+  platform_fee             Decimal
+  provider_payout          Decimal
+  currency                 String        @default("PKR")
+  method                   PaymentMethod
+  status                   PaymentStatus @default(PENDING)
+  stripe_payment_intent_id String?
+  invoice_url              String?
+  created_at               DateTime      @default(now())
+  paid_at                  DateTime?
+}
+
+enum PaymentMethod { CARD  JAZZCASH  EASYPAISA  CASH }
+enum PaymentStatus { PENDING  PROCESSING  COMPLETED  FAILED  REFUNDED }
+
+model Certification {
+  id           String          @id @default(cuid())
+  provider_id  String
+  provider     ProviderProfile @relation(fields: [provider_id], references: [id])
+  title        String
+  issuer       String?
+  doc_url      String
+  is_verified  Boolean         @default(false)
+  created_at   DateTime        @default(now())
+}
+
+model Availability {
+  id          String          @id @default(cuid())
+  provider_id String
+  provider    ProviderProfile @relation(fields: [provider_id], references: [id])
+  day_of_week Int
+  start_time  String
+  end_time    String
+  is_active   Boolean         @default(true)
+}
+```
+
+---
+
+## 🔐 AUTH & ROLES
+
+- **Strategy**: Supabase Auth — Phone OTP (primary for Pakistan) + Google OAuth + Email
+- **Session**: JWT tokens managed by Supabase, auto-refreshed
+
+| Role | Access |
+|------|--------|
+| `CUSTOMER` | Search, book, pay, review, message providers |
+| `PROVIDER` | Manage profile, accept/reject bookings, message customers, view earnings |
+| `ADMIN` | Full platform access, verify providers, moderate reviews, analytics |
+
+**Protected routes:** `/dashboard/*` → CUSTOMER | `/pro/*` → PROVIDER | `/admin/*` → ADMIN | `/messages/*` → authenticated users, own threads only
+
+**Public routes:** `/`, `/search`, `/categories/*`, `/providers/[id]`
+
+---
+
+## 🛣️ ROUTES & API
+
+### Frontend Pages
+```
+/                           Landing — hero, categories, how it works, trust signals
+/search                     Smart search + filters (category, location, price, rating)
+/categories/[slug]          Category listing with providers
+/providers/[id]             Provider public profile + book CTA
+
+/login                      Phone OTP / Google login
+/signup                     Registration + role selection (Customer or Provider)
+/onboarding                 Post-signup onboarding flow
+
+/dashboard                  Customer home — bookings, recommendations
+/bookings                   Customer booking history
+/bookings/[id]              Booking detail — status, messages, invoice, review
+
+/pro/dashboard              Provider home — pending jobs, earnings summary
+/pro/jobs                   All jobs by status
+/pro/jobs/[id]              Job detail — accept/reject, update status, chat
+/pro/earnings               Earnings + payout history
+/pro/profile                Edit profile, availability, certifications
+/pro/onboarding             Multi-step: category → bio → location → pricing → certs
+
+/messages                   Messaging inbox
+/messages/[threadId]        Chat for a booking
+
+/settings                   Account settings
+/admin                      Admin dashboard
+/admin/providers            Verification queue
+/admin/bookings             All platform bookings
+/admin/reports              Revenue & analytics
+```
+
+### tRPC Routers
+```typescript
+providers.search(query, category, lat, lng, radius, filters, page)
+providers.getById(id)
+providers.getProfile()
+providers.updateProfile(data)
+providers.setAvailability(slots)
+
+bookings.create(providerId, details)
+bookings.getById(id)
+bookings.listCustomer(status, page)
+bookings.listProvider(status, page)
+bookings.accept(id)
+bookings.reject(id, reason)
+bookings.updateStatus(id, status)
+bookings.cancel(id, reason)
+
+reviews.create(bookingId, rating, comment)
+reviews.getByProvider(providerId, page)
+reviews.replyToReview(reviewId, reply)
+
+messages.getThread(bookingId)
+messages.send(bookingId, content)
+messages.markRead(threadId)
+
+payments.createIntent(bookingId)
+payments.confirmPayment(bookingId, paymentMethodId)
+payments.getInvoice(bookingId)
+payments.listEarnings(page)
+
+admin.getPendingVerifications()
+admin.verifyProvider(providerId, approve, notes)
+admin.getStats()
+admin.getPlatformBookings(filters, page)
+```
+
+---
+
+## ⚙️ DEV ENVIRONMENT
+
+```bash
+# Install & setup
+npm install
+npx prisma generate
+npx prisma migrate dev --name init
+npm run db:seed
+npm run dev                  # localhost:3000
+
+# Common commands
+npm run build                # Production build
+npm run typecheck            # tsc --noEmit
+npm run lint                 # ESLint
+npm run test                 # Vitest
+npm run test:e2e             # Playwright
+npm run db:migrate           # npx prisma migrate dev
+npm run db:seed              # Seed categories, test users, sample data
+npm run db:reset             # Reset + reseed (dev only)
+npm run db:studio            # Prisma Studio at localhost:5555
+```
+
+### Environment Variables (.env.local)
+```bash
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+
+# Database (Prisma)
+DATABASE_URL=
+DIRECT_URL=
+
+# Payments
+STRIPE_PUBLIC_KEY=
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+JAZZCASH_MERCHANT_ID=
+JAZZCASH_PASSWORD=
+EASYPAISA_STORE_ID=
+
+# Maps
+NEXT_PUBLIC_GOOGLE_MAPS_KEY=
+
+# Notifications
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_PHONE_NUMBER=
+RESEND_API_KEY=
+
+# Firebase
+NEXT_PUBLIC_FIREBASE_CONFIG=
+FIREBASE_ADMIN_SDK=
+
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+> ⚠️ Never commit `.env.local`. Never expose `SUPABASE_SERVICE_ROLE_KEY` to the client.
+
+---
+
+## 🎨 CODING STANDARDS
+
+- **TypeScript strict mode** — no `any` without justifying comment
+- **ES Modules** only (import/export)
+- **Prettier**: 2-space indent, single quotes, trailing commas
+- Naming: files/folders `kebab-case`, components `PascalCase`, functions `camelCase`, DB `snake_case`
+- **Server components** by default in Next.js 14 — client components only for state/effects/browser APIs
+- Validate all inputs with **Zod** — at tRPC router boundary AND form level
+- All monetary values in **smallest currency unit** (paisas for PKR)
+- All DB writes through **Prisma** — no raw SQL without performance justification + comment
+- **Ownership checks** server-side on every mutation — never trust client-provided IDs
+- Use **transactions** for any write touching more than one table
+- Standard success response: `{ success: true, data: {...} }`
+- Standard error response: `{ success: false, error: { code: 'ERROR_CODE', message: '...' } }`
+
+---
+
+## 🧪 TESTING STRATEGY
+
+| Type | What | Tool |
+|------|------|------|
+| Unit | Utility functions, price calculations, data transforms | Vitest |
+| Integration | tRPC routers, DB queries | Vitest + test DB |
+| Component | BookingForm, ProviderCard, SearchBar | React Testing Library |
+| E2E | Book a job, provider accepts, payment flow | Playwright |
+
+- Test files co-located: `booking.ts` → `booking.test.ts`
+- E2E tests in `/e2e/`
+- CI blocks merge if any tests fail
+
+---
+
+## 🚀 BUILD PHASES
+
+### Phase 1 — Foundation
+- [ ] Project scaffold: Next.js 14, Tailwind, shadcn/ui, Supabase, Prisma, tRPC
+- [ ] Database schema + migrations + seed script
+- [ ] Auth: Phone OTP + Google OAuth, role selection, basic onboarding
+- [ ] Base UI: Button, Input, Modal, Card, Badge, Avatar, StarRating, StatusBadge
+
+### Phase 2 — Discovery & Profiles
+- [ ] Category data + CategoryGrid + category pages
+- [ ] Location-based provider search (radius query, filters, pagination)
+- [ ] Public provider profile page
+- [ ] Provider multi-step onboarding
+
+### Phase 3 — Booking Flow
+- [ ] Customer booking creation
+- [ ] Provider job accept / reject
+- [ ] Booking status machine (PENDING → ACCEPTED → IN_PROGRESS → COMPLETED)
+- [ ] Customer & provider dashboards
+- [ ] Booking detail pages
+
+### Phase 4 — Trust & Communication
+- [ ] In-app messaging (Supabase Realtime)
+- [ ] Post-completion reviews & ratings
+- [ ] Certification upload + verified badge
+- [ ] Admin provider verification queue
+
+### Phase 5 — Payments
+- [ ] Stripe card payments + webhook handling
+- [ ] JazzCash / EasyPaisa hooks
+- [ ] Platform commission calculation
+- [ ] Digital invoice generation (PDF)
+- [ ] Provider earnings dashboard + payout management
+
+### Phase 6 — Polish & Production
+- [ ] Push notifications (FCM) + SMS booking alerts (Twilio)
+- [ ] Sponsored listing logic
+- [ ] Admin dashboard: stats, reports, moderation
+- [ ] SEO: OG tags, sitemap, structured data for provider profiles
+- [ ] Rate limiting, CORS, security headers, error logging
+- [ ] Performance: image optimization, lazy loading, Core Web Vitals audit
+
+---
+
+## 📋 FEATURE LIST
+
+| Feature | Priority | Status |
+|---------|----------|--------|
+| Phone OTP auth + Google SSO | P0 | ⬜ |
+| Category browse & smart search | P0 | ⬜ |
+| Location-based provider discovery | P0 | ⬜ |
+| Provider public profiles + verified badge | P0 | ⬜ |
+| Booking creation & management | P0 | ⬜ |
+| Provider job accept / reject / complete | P0 | ⬜ |
+| In-app messaging per booking | P0 | ⬜ |
+| Ratings & reviews | P0 | ⬜ |
+| Stripe card payments + invoices | P0 | ⬜ |
+| Provider earnings dashboard | P0 | ⬜ |
+| Provider verification flow + admin queue | P0 | ⬜ |
+| JazzCash / EasyPaisa payments | P1 | ⬜ |
+| Push & SMS notifications | P1 | ⬜ |
+| Sponsored search placements | P1 | ⬜ |
+| Provider subscription tiers (FREE/PRO/FEATURED) | P1 | ⬜ |
+| Enterprise / clinic partner portal | P2 | ⬜ |
+| Mobile app (React Native) | P2 | ⬜ |
+| Multi-language support (Urdu RTL + Arabic) | P2 | ⬜ |
+| GCC market expansion (AED currency, UAE regions) | P2 | ⬜ |
+
+> Status: ⬜ not started · 🔄 in progress · ✅ done
+
+---
+
+## 🌍 DOMAIN GLOSSARY
+
+| Term | Definition |
+|------|-----------|
+| Provider | Verified service professional (plumber, doctor, mechanic, etc.) |
+| Customer | User who discovers and books services |
+| Booking | Service request with scheduled time, address, and status lifecycle |
+| Gig | Provider-facing term for a booking/job |
+| Verification | Admin approval of provider identity + credentials |
+| Service Area | Geographic radius within which a provider accepts jobs |
+| Platform Fee | HireMe's commission on completed bookings (configurable %) |
+| Featured / Sponsored | Paid placement — provider appears at top of search results |
+| Availability Slot | Day + time window a provider is open for new bookings |
+
+---
+
+## 🔒 SECURITY REQUIREMENTS
+
+- All auth via Supabase Auth — never roll custom auth
+- Rate limit OTP: max 3 requests per phone per 10 minutes
+- Rate limit bookings: max 10 creations per customer per hour
+- **Row Level Security (RLS)** enabled on all Supabase tables
+- CORS: allow only `hireme.pk` and `localhost:3000` in production
+- All file uploads validated: MIME type check (images + PDFs only)
+- Stripe webhooks verified with `STRIPE_WEBHOOK_SECRET`
+- Admin routes protected by both Next.js middleware AND tRPC middleware
+- Maps show provider **service area circle**, never exact home address
+
+---
+
+## 🧠 AGENT MEMORY PROTOCOL
+
+- Before any feature: update `plan.md` with the approach
+- After each phase: update `progress.md` with what's done and any blockers
+- When resuming after context reset: read `CLAUDE.md` + `plan.md` + `progress.md` first
+- Use `// TODO(agent): ` comments for known gaps to revisit in next session
+
+---
+
+## 📝 FINAL NOTES FOR AGENT
+
+- Display all prices in **PKR** using `Intl.NumberFormat('ur-PK', { style: 'currency', currency: 'PKR' })`
+- Store phone numbers with country code: `+92XXXXXXXXXX`
+- Never mock payment flows — use **Stripe test mode** keys in development
+- Provider card always shows: name, category, city, rating, price range, verified badge
+- Booking status is **one-directional** — COMPLETED cannot revert
+- Maps display the **service area circle**, not the provider's home pin
+- Sponsored providers appear first in search with a subtle "Sponsored" label
+- Seed data must include: all service categories (plumber, electrician, mechanic, doctor, clinic assistant, carpenter, painter, AC technician, tutor, maid), 3 test customers, 10 test providers across categories, 5 bookings in various statuses
+- UI tone: **professional but warm** — trust and reliability are core to this marketplace.

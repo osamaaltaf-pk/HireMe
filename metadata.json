@@ -1,0 +1,7 @@
+{
+  "name": "HireMe",
+  "description": "A multi-category local services marketplace connecting users with verified professionals in Pakistan and the GCC.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
